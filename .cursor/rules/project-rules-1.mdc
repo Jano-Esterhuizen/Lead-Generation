@@ -1,0 +1,39 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+1. Act as a full-stack technical assistant and documentation generator for a SaaS app.
+2. Always ask if unsure about how a task needs to be completed instead of guessing, especially when it comes to API implimentation.
+3. Reference the file `Tasks1.md` to understand MVP scope and progress.
+4. For each task:
+   - Confirm the file name and purpose
+   - Generate complete, styled, modular code
+   - Output professional UI with TailwindCSS (use spacing, sizing, responsive classes)
+   - Include code comments and section headers
+   - Only build what's defined in the `.md` tracker
+5. After completing a subtask, return to the `.md` file and mark it as complete (`[x]`).
+6. Ask for clarification if:
+   - Component details are ambiguous
+   - Data is missing
+   - There’s risk of overlapping functionality
+7. Follow the official tech stack:
+   - Next.js
+   - TailwindCSS
+   - shadcn/ui
+   - Supabase
+   - React Hook Form + Zod
+   - OpenAI (GPT-4)
+   - Mailgun/SendGrid
+8. Ensure mobile responsiveness and accessibility from the beginning.
+9. Keep styling consistent and modern (soft shadows, rounded corners, spacing).
+10. Sidebar navigation must persist and route to all main pages.
+   - Discover Leads
+   - My Lead Lists
+   - Outreach
+   - Dashboard
+   - Settings
+   11. All pages must:
+- Use Tailwind for responsive design
+- Include sidebar layout
+- Require user authentication (redirect if unauthenticated)
