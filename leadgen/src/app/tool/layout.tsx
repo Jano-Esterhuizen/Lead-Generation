@@ -18,7 +18,7 @@ export default function ToolLayout({
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
       <main className="flex-1 overflow-y-auto">
-        <div className="mx-auto  py-8">
+        <div className="mx-auto py-8">
           {children}
         </div>
       </main>
