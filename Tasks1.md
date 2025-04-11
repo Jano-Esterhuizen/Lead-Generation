@@ -23,14 +23,14 @@ This file tracks MVP development progress for the LeadSleuth SaaS app. Each feat
 2. Discover Leads (Sidebar: /tool/discover)
 
 Tasks:
-- [ ] Implement `LeadSearchForm.tsx` (location, radius, niche)
-- [ ] Use React Hook Form + Zod for validation
-- [ ] Connect to Google Places API for results
-- [ ] Display `LeadCard.tsx` with opportunity flags:
-  - [ ] No website
-  - [ ] Few reviews
-  - [ ] No photos
-- [ ] Add lead filters: has website, review rating, photos
+- [x] Implement `LeadSearchForm.tsx` (location, radius, niche)
+- [x] Use React Hook Form + Zod for validation
+- [x] Connect to Google Places API for results
+- [x] Display `LeadCard.tsx` with opportunity flags:
+  - [x] No website
+  - [x] Few reviews
+  - [x] No photos
+- [x] Add lead filters: has website, review rating, photos
 - [ ] Save selected leads to Supabase `lead_lists` table
 
 ---
@@ -38,10 +38,52 @@ Tasks:
 3. My Lead Lists (Sidebar: /tool/leads)
 
 Tasks:
-- [ ] Create `LeadListView.tsx` to display saved leads
-- [ ] Display and manage tags (Hot, Warm, Lost)
-- [ ] Add lead notes modal or expandable input
-- [ ] CRUD support for lead lists in Supabase
+- [x] Create `LeadListView.tsx` to display saved leads
+- [x] Display and manage tags (Hot, Warm, Lost)
+- [x] Add lead notes modal or expandable input
+- [ ] Create and manage multiple lead lists
+  - [ ] Create new list with name and description
+  - [ ] Move leads between lists
+  - [ ] Archive/delete lists
+  - [ ] List sharing settings (future)
+- [ ] Lead Management Features
+  - [ ] Add notes to leads
+  - [ ] Set lead status (New, Contacted, Responded, etc.)
+  - [ ] Add custom tags
+  - [ ] Bulk actions (move, tag, delete)
+- [ ] Lead List Database Schema
+  ```sql
+  -- Lists table
+  create table lead_lists (
+    id uuid default uuid_generate_v4() primary key,
+    user_id uuid references auth.users(id),
+    name text not null,
+    description text,
+    created_at timestamptz default now(),
+    updated_at timestamptz default now(),
+    is_archived boolean default false
+  );
+
+  -- List items table (leads in lists)
+  create table list_items (
+    id uuid default uuid_generate_v4() primary key,
+    list_id uuid references lead_lists(id),
+    lead_id uuid references leads(id),
+    notes text,
+    status text default 'new',
+    created_at timestamptz default now(),
+    updated_at timestamptz default now(),
+    unique(list_id, lead_id)
+  );
+
+  -- Lead tags table
+  create table lead_tags (
+    id uuid default uuid_generate_v4() primary key,
+    lead_id uuid references leads(id),
+    tag text not null,
+    created_at timestamptz default now()
+  );
+  ```
 
 
 4. Outreach (Sidebar: /tool/outreach)

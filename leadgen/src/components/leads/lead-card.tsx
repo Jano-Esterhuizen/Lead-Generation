@@ -5,12 +5,16 @@ import { Globe, Star, Image as ImageIcon, AlertCircle } from "lucide-react"
 export interface Lead {
   id: string
   name: string
-  address: string
+  formatted_address: string
   rating?: number
   totalRatings?: number
   hasWebsite: boolean
   photoCount: number
   phone?: string
+  flags?: string[]
+  notes?: string
+  created_at?: string
+  updated_at?: string
 }
 
 interface LeadCardProps {
@@ -52,7 +56,7 @@ export function LeadCard({ lead, onSave }: LeadCardProps) {
         <div className="flex items-start justify-between">
           <div>
             <h3 className="text-lg font-semibold text-gray-900">{lead.name}</h3>
-            <p className="mt-1 text-sm text-gray-500">{lead.address}</p>
+            <p className="mt-1 text-sm text-gray-500">{lead.formatted_address}</p>
           </div>
           {lead.rating && (
             <div className="flex items-center gap-1">

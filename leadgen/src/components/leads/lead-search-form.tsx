@@ -4,7 +4,9 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { Search } from "lucide-react"
+import { Search, Loader2 } from "lucide-react"
+import toast from "react-hot-toast"
+import { searchNearbyBusinesses, type PlaceResult } from "@/lib/google-places"
 
 const searchSchema = z.object({
   location: z.string().min(1, "Location is required"),
@@ -15,20 +17,25 @@ const searchSchema = z.object({
 type SearchFormData = z.infer<typeof searchSchema>
 
 const businessNiches = [
-  "Restaurants",
-  "Retail Stores",
-  "Beauty & Wellness",
-  "Professional Services",
-  "Home Services",
-  "Automotive",
-  "Healthcare",
-  "Fitness",
-  "Real Estate",
-  "Other"
+  "Restaurant",
+  "Store",
+  "Beauty_Salon",
+  "Hair_Care",
+  "Doctor",
+  "Dentist",
+  "Gym",
+  "Real_Estate_Agency",
+  "Car_Dealer",
+  "Car_Repair",
 ] as const
 
-export function LeadSearchForm({ onSearch }: { onSearch: (data: SearchFormData) => void }) {
-  const [isSearching, setIsSearching] = useState(false)
+interface LeadSearchFormProps {
+  onSearch: (results: PlaceResult[], nextPageToken?: string) => void;
+  isLoading?: boolean;
+}
+
+export function LeadSearchForm({ onSearch, isLoading }: LeadSearchFormProps) {
+  const [searchError, setSearchError] = useState<string>("")
 
   const {
     register,
@@ -42,16 +49,31 @@ export function LeadSearchForm({ onSearch }: { onSearch: (data: SearchFormData) 
   })
 
   const onSubmit = async (data: SearchFormData) => {
-    setIsSearching(true)
     try {
-      await onSearch(data)
-    } finally {
-      setIsSearching(false)
+      setSearchError("")
+      const results = await searchNearbyBusinesses({
+        location: data.location,
+        radius: data.radius,
+        type: data.niche,
+      })
+      onSearch(results.results, results.nextPageToken)
+      toast.success(`Found ${results.results.length} businesses`)
+    } catch (error) {
+      console.error("Search error:", error)
+      const errorMessage = error instanceof Error ? error.message : "Failed to search businesses"
+      setSearchError(errorMessage)
+      toast.error(errorMessage)
     }
   }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 rounded-lg border bg-white p-6">
+      {searchError && (
+        <div className="rounded-md bg-red-50 p-4">
+          <p className="text-sm text-red-700">{searchError}</p>
+        </div>
+      )}
+      
       <div className="grid gap-6 md:grid-cols-3">
         <div className="space-y-2">
           <label htmlFor="location" className="text-sm font-medium text-gray-700">
@@ -88,17 +110,17 @@ export function LeadSearchForm({ onSearch }: { onSearch: (data: SearchFormData) 
 
         <div className="space-y-2">
           <label htmlFor="niche" className="text-sm font-medium text-gray-700">
-            Business Niche
+            Business Type
           </label>
           <select
             id="niche"
             {...register("niche")}
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
-            <option value="">Select a niche</option>
+            <option value="">Select a type</option>
             {businessNiches.map((niche) => (
               <option key={niche} value={niche.toLowerCase()}>
-                {niche}
+                {niche.replace(/_/g, " ")}
               </option>
             ))}
           </select>
@@ -111,11 +133,14 @@ export function LeadSearchForm({ onSearch }: { onSearch: (data: SearchFormData) 
       <div className="flex justify-end">
         <button
           type="submit"
-          disabled={isSearching}
+          disabled={isLoading}
           className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
         >
-          {isSearching ? (
-            "Searching..."
+          {isLoading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Searching...
+            </>
           ) : (
             <>
               <Search className="h-4 w-4" />
