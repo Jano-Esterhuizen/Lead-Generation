@@ -2,6 +2,11 @@ This file tracks MVP development progress for the LeadSleuth SaaS app. Each feat
 
 1. Setup Pages
 - [x] Basic page structure and routing created
+- [x] Authentication with Supabase implemented
+  - [x] Login/Signup forms
+  - [x] Protected routes
+  - [x] Auth middleware
+  - [x] Session handling
 
 | Route              | Page Purpose                                  |
 |--------------------|-----------------------------------------------|
