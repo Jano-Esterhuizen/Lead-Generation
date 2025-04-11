@@ -1,7 +1,7 @@
 This file tracks MVP development progress for the LeadSleuth SaaS app. Each feature aligns with a sidebar section. Check off tasks once they're completed and reviewed. Follow the official tech stack: Next.js, TailwindCSS, shadcn/ui, Supabase, GPT-4, and Mailgun/SendGrid.
 
 1. Setup Pages
-- [ ]
+- [x] Basic page structure and routing created
 
 | Route              | Page Purpose                                  |
 |--------------------|-----------------------------------------------|
