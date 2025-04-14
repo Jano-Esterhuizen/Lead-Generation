@@ -14,6 +14,7 @@ export interface PlaceResult {
   user_ratings_total?: number;
   website?: string;
   formatted_phone_number?: string;
+  email?: string;
   opening_hours?: {
     open_now?: boolean;
     weekday_text?: string[];
@@ -118,5 +119,62 @@ export async function searchNearbyBusinesses({
   } catch (error) {
     console.error('Error in searchNearbyBusinesses:', error);
     throw error;
+  }
+}
+
+export async function getPlaceDetails(placeId: string): Promise<PlaceResult | null> {
+  if (!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) {
+    throw new Error('Google Maps API key is not configured');
+  }
+
+  try {
+    const placesService = new google.maps.places.PlacesService(document.createElement('div'));
+
+    const request: google.maps.places.PlaceDetailsRequest = {
+      placeId: placeId,
+      fields: ['name', 'formatted_address', 'website', 'formatted_phone_number', 'opening_hours', 'business_status', 'rating', 'user_ratings_total']
+    };
+
+    const placeDetails = await new Promise<google.maps.places.PlaceResult>((resolve, reject) => {
+      placesService.getDetails(request, (result, status) => {
+        if (status === google.maps.places.PlacesServiceStatus.OK && result) {
+          resolve(result);
+        } else {
+          reject(new Error(`Place details failed: ${status}`));
+        }
+      });
+    });
+
+    // Try to find email from website
+    let email: string | undefined;
+    if (placeDetails.website) {
+      try {
+        const response = await fetch(`/api/scrape-email?url=${encodeURIComponent(placeDetails.website)}`);
+        const data = await response.json();
+        email = data.email;
+      } catch (error) {
+        console.error('Error scraping email:', error);
+      }
+    }
+
+    return {
+      place_id: placeId,
+      name: placeDetails.name || '',
+      formatted_address: placeDetails.formatted_address || '',
+      types: placeDetails.types || [],
+      business_status: placeDetails.business_status,
+      rating: placeDetails.rating,
+      user_ratings_total: placeDetails.user_ratings_total,
+      website: placeDetails.website,
+      formatted_phone_number: placeDetails.formatted_phone_number,
+      email,
+      opening_hours: placeDetails.opening_hours ? {
+        open_now: placeDetails.opening_hours.open_now,
+        weekday_text: placeDetails.opening_hours.weekday_text,
+      } : undefined,
+    };
+  } catch (error) {
+    console.error('Error in getPlaceDetails:', error);
+    return null;
   }
 } 

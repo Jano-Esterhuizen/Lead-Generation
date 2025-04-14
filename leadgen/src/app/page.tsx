@@ -1,7 +1,31 @@
+"use client"
+
 import Link from "next/link"
-import { Search } from "lucide-react"
+import { Search, LogOut } from "lucide-react"
+import { createClient } from "@/lib/supabase/client"
+import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
 
 export default function LandingPage() {
+  const router = useRouter()
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      setIsAuthenticated(!!session)
+    }
+    checkAuth()
+  }, [])
+
+  const handleSignOut = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    setIsAuthenticated(false)
+    router.refresh()
+  }
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-50 w-full border-b bg-white">
@@ -13,18 +37,38 @@ export default function LandingPage() {
             <span className="text-xl font-semibold text-gray-900">LeadGen</span>
           </div>
           <nav className="flex items-center gap-4">
-            <Link
-              href="/login"
-              className="text-sm font-medium text-gray-700 hover:text-gray-900"
-            >
-              Sign in
-            </Link>
-            <Link
-              href="/signup"
-              className="rounded-full bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-            >
-              Sign up free
-            </Link>
+            {isAuthenticated ? (
+              <>
+                <Link
+                  href="/tool/discover"
+                  className="text-sm font-medium text-gray-700 hover:text-gray-900"
+                >
+                  Dashboard
+                </Link>
+                <button
+                  onClick={handleSignOut}
+                  className="flex items-center gap-2 rounded-full bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Sign out
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="text-sm font-medium text-gray-700 hover:text-gray-900"
+                >
+                  Sign in
+                </Link>
+                <Link
+                  href="/signup"
+                  className="rounded-full bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                >
+                  Sign up free
+                </Link>
+              </>
+            )}
           </nav>
         </div>
       </header>
@@ -50,6 +94,42 @@ export default function LandingPage() {
               >
                 Learn more
               </Link>
+            </div>
+          </div>
+        </section>
+        <section className="bg-gray-50 py-24">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6">
+            <div className="grid gap-12 lg:grid-cols-2 lg:gap-8">
+              <div className="flex flex-col justify-center">
+                <h2 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">
+                  The modern platform for finding and connecting with local businesses
+                </h2>
+                <p className="mt-6 text-lg leading-8 text-gray-600">
+                  Create targeted outreach campaigns and scale your client acquisition. Built for freelancers and agencies needing full control and automation — no cold calling, no manual research, no wasted time.
+                </p>
+                <div className="mt-8">
+                  <Link
+                    href="/signup"
+                    className="inline-flex items-center rounded-full bg-blue-600 px-6 py-3 text-base font-medium text-white shadow-sm hover:bg-blue-700"
+                  >
+                    Explore platform
+                    <Search className="ml-3 h-5 w-5" />
+                  </Link>
+                </div>
+              </div>
+              <div className="relative">
+                <div className="aspect-[4/3] overflow-hidden rounded-xl bg-white p-8 shadow-lg ring-1 ring-gray-200">
+                  <div className="h-full w-full bg-gray-50 object-cover rounded-lg p-4">
+                    <div className="space-y-4">
+                      <div className="h-4 w-3/4 rounded bg-gray-200" />
+                      <div className="h-4 w-1/2 rounded bg-gray-200" />
+                      <div className="h-4 w-5/6 rounded bg-gray-200" />
+                      <div className="h-4 w-2/3 rounded bg-gray-200" />
+                    </div>
+                  </div>
+                </div>
+                <div className="absolute -top-4 -right-4 h-72 w-72 rounded-xl bg-blue-50 -z-10" />
+              </div>
             </div>
           </div>
         </section>

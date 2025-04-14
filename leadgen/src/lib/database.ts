@@ -37,15 +37,12 @@ export interface ListItem {
   lead_id: string;
   notes?: string;
   status: string;
+  email_status: 'pending' | 'sent' | 'failed';
+  campaign_id?: string;
+  email_sent_at?: string;
+  email_error?: string;
   created_at: string;
   updated_at: string;
-}
-
-export interface LeadTag {
-  id: string;
-  lead_id: string;
-  tag: string;
-  created_at: string;
 }
 
 export async function saveLead(lead: PlaceResult, flags: string[] = [], notes: string = '') {
@@ -171,6 +168,7 @@ export async function addLeadToList(listId: string, leadId: string, notes?: stri
       lead_id: leadId,
       notes,
       status,
+      email_status: 'pending'
     })
     .select()
     .single();
@@ -209,39 +207,4 @@ export async function removeLeadFromList(listId: string, leadId: string) {
     .match({ list_id: listId, lead_id: leadId });
 
   if (error) throw error;
-}
-
-// Lead Tag Functions
-export async function addTagToLead(leadId: string, tag: string) {
-  const { data, error } = await supabase
-    .from('lead_tags')
-    .insert({
-      lead_id: leadId,
-      tag,
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data as LeadTag;
-}
-
-export async function removeTagFromLead(leadId: string, tag: string) {
-  const { error } = await supabase
-    .from('lead_tags')
-    .delete()
-    .match({ lead_id: leadId, tag });
-
-  if (error) throw error;
-}
-
-export async function getLeadTags(leadId: string) {
-  const { data, error } = await supabase
-    .from('lead_tags')
-    .select()
-    .eq('lead_id', leadId)
-    .order('created_at', { ascending: false });
-
-  if (error) throw error;
-  return data as LeadTag[];
 } 

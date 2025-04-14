@@ -42,6 +42,8 @@ import { createClient } from "@/lib/supabase/client"
 import { generateEmail } from "@/lib/openai"
 import { Mail, BarChart2, Clock, CheckCircle2, XCircle, AlertCircle, Wand2, Save } from "lucide-react"
 import { toast } from "react-hot-toast"
+import { useRouter } from "next/navigation"
+import { Badge } from "@/components/ui/badge"
 
 interface Campaign {
   id: string
@@ -84,6 +86,10 @@ export default function OutreachPage() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [isTemplateSaveOpen, setIsTemplateSaveOpen] = useState(false)
   const [newTemplateName, setNewTemplateName] = useState("")
+  const [selectedOutreachMethod, setSelectedOutreachMethod] = useState<"email" | "call">("email")
+  const [callScript, setCallScript] = useState("")
+  const [callNotes, setCallNotes] = useState("")
+  const router = useRouter()
 
   useEffect(() => {
     loadCampaigns()
@@ -216,8 +222,18 @@ export default function OutreachPage() {
   }
 
   const handleCreateCampaign = async () => {
-    if (!campaignName || !selectedList || !emailSubject || !emailBody) {
-      toast.error("Please fill in all campaign details")
+    if (!campaignName || !selectedList) {
+      toast.error("Please fill in campaign name and select a list")
+      return
+    }
+
+    if (selectedOutreachMethod === 'email' && (!emailSubject || !emailBody)) {
+      toast.error("Please fill in email subject and body")
+      return
+    }
+
+    if (selectedOutreachMethod === 'call' && !callScript) {
+      toast.error("Please fill in the call script")
       return
     }
 
@@ -230,6 +246,23 @@ export default function OutreachPage() {
         return
       }
 
+      // Check Gmail connection for email campaigns
+      if (selectedOutreachMethod === 'email') {
+        const { data: settings } = await supabase
+          .from('user_settings')
+          .select('gmail_access_token')
+          .eq('user_id', user.user.id)
+          .single()
+
+        if (!settings?.gmail_access_token) {
+          // Redirect to Gmail auth
+          const response = await fetch('/api/auth/gmail')
+          const { url } = await response.json()
+          window.location.href = url
+          return
+        }
+      }
+
       // Create the campaign
       const { data: campaign, error: campaignError } = await supabase
         .from("email_campaigns")
@@ -237,8 +270,11 @@ export default function OutreachPage() {
           {
             name: campaignName,
             list_id: selectedList,
-            subject: emailSubject,
-            body: emailBody,
+            type: selectedOutreachMethod,
+            subject: selectedOutreachMethod === 'email' ? emailSubject : null,
+            body: selectedOutreachMethod === 'email' ? emailBody : null,
+            call_script: selectedOutreachMethod === 'call' ? callScript : null,
+            call_notes: selectedOutreachMethod === 'call' ? callNotes : null,
             status: "pending",
             user_id: user.user.id
           },
@@ -248,17 +284,63 @@ export default function OutreachPage() {
 
       if (campaignError) throw campaignError
 
+      // Start sending emails if it's an email campaign
+      if (selectedOutreachMethod === 'email') {
+        fetch('/api/email/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ campaignId: campaign.id })
+        })
+      }
+
       toast.success("Campaign created successfully!")
       setIsCreateCampaignOpen(false)
-      setCampaignName("")
-      setSelectedList("")
-      setEmailSubject("")
-      setEmailBody("")
+      resetForm()
       loadCampaigns()
     } catch (err) {
       console.error("Error creating campaign:", err)
       toast.error("Failed to create campaign")
     }
+  }
+
+  // Handle Gmail OAuth callback
+  useEffect(() => {
+    const handleGmailCallback = async () => {
+      const searchParams = new URLSearchParams(window.location.search)
+      const code = searchParams.get('code')
+      
+      if (code) {
+        try {
+          // Remove code from URL first to prevent double processing
+          window.history.replaceState({}, '', window.location.pathname)
+          
+          const response = await fetch(`/api/auth/gmail?code=${code}`)
+          const data = await response.json()
+          
+          if (data.success) {
+            toast.success("Gmail connected successfully!")
+          } else {
+            throw new Error(data.error)
+          }
+        } catch (error) {
+          console.error('Error connecting Gmail:', error)
+          toast.error("Failed to connect Gmail")
+        }
+      }
+    }
+
+    handleGmailCallback()
+  }, [])
+
+  const resetForm = () => {
+    setCampaignName("")
+    setSelectedList("")
+    setSelectedOutreachMethod("email")
+    setEmailSubject("")
+    setEmailBody("")
+    setSelectedTemplate("")
+    setCallScript("")
+    setCallNotes("")
   }
 
   const getStatusColor = (status: string) => {
@@ -284,6 +366,10 @@ export default function OutreachPage() {
       hour: "2-digit",
       minute: "2-digit",
     })
+  }
+
+  const handleCampaignClick = (campaignId: string) => {
+    router.push(`/tool/outreach/${campaignId}`)
   }
 
   return (
@@ -341,95 +427,139 @@ export default function OutreachPage() {
                   </Select>
                 </div>
                 <div className="grid gap-2">
-                <div className="flex flex-col gap-2">
-                    <Label htmlFor="service">AI Email Generation</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        id="service"
-                        value={serviceOffering}
-                        onChange={(e) => setServiceOffering(e.target.value)}
-                        placeholder="Describe your service offering"
-                      />
-                      <Select value={emailTone} onValueChange={(value: "professional" | "friendly" | "casual") => setEmailTone(value)}>
-                        <SelectTrigger className="w-[150px]">
-                          <SelectValue placeholder="Select tone" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="professional">Professional</SelectItem>
-                          <SelectItem value="friendly">Friendly</SelectItem>
-                          <SelectItem value="casual">Casual</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Button
-                        variant="outline"
-                        onClick={handleGenerateEmail}
-                        disabled={isGenerating || !serviceOffering}
-                      >
-                        <Wand2 className="h-4 w-4 mr-2" />
-                        Generate
-                      </Button>
-                    </div>
-                  </div>
-                  <Label htmlFor="template">Email Template</Label>
-                  <Select value={selectedTemplate} onValueChange={handleTemplateSelect}>
+                  <Label htmlFor="outreach-method">Outreach Method</Label>
+                  <Select 
+                    value={selectedOutreachMethod} 
+                    onValueChange={(value: "email" | "call") => setSelectedOutreachMethod(value)}
+                  >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select a template or create new" />
+                      <SelectValue placeholder="Select outreach method" />
                     </SelectTrigger>
                     <SelectContent>
-                      {templates.map((template) => (
-                        <SelectItem key={template.id} value={template.id}>
-                          {template.name}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="email">Email Campaign</SelectItem>
+                      <SelectItem value="call">Cold Calling</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="grid gap-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="subject">Email Subject</Label>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setIsTemplateSaveOpen(true)}
-                        disabled={!emailSubject || !emailBody}
-                      >
-                        <Save className="h-4 w-4 mr-2" />
-                        Save Template
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setEmailSubject("")
-                          setEmailBody("")
-                          setSelectedTemplate("")
-                        }}
-                      >
-                        Clear
-                      </Button>
+
+                {selectedOutreachMethod === 'email' && (
+                  <div className="space-y-4 border rounded-lg p-4 bg-gray-50">
+                    <div className="grid gap-2">
+                      <Label htmlFor="template">Email Template</Label>
+                      <Select value={selectedTemplate} onValueChange={handleTemplateSelect}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a template or create new" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {templates.map((template) => (
+                            <SelectItem key={template.id} value={template.id}>
+                              {template.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-2">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="subject">Email Subject</Label>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setIsTemplateSaveOpen(true)}
+                            disabled={!emailSubject || !emailBody}
+                          >
+                            <Save className="h-4 w-4 mr-2" />
+                            Save Template
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setEmailSubject("")
+                              setEmailBody("")
+                              setSelectedTemplate("")
+                            }}
+                          >
+                            Clear
+                          </Button>
+                        </div>
+                      </div>
+                      <Input
+                        id="subject"
+                        value={emailSubject}
+                        onChange={(e) => setEmailSubject(e.target.value)}
+                        placeholder="Enter email subject"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="body">Email Body</Label>
+                      <Textarea
+                        id="body"
+                        value={emailBody}
+                        onChange={(e) => setEmailBody(e.target.value)}
+                        placeholder="Enter email body"
+                        rows={8}
+                      />
+                    </div>
+                    <div className="grid gap-4">
+                      <div className="flex flex-col gap-2">
+                        <Label htmlFor="service">AI Email Generation</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            id="service"
+                            value={serviceOffering}
+                            onChange={(e) => setServiceOffering(e.target.value)}
+                            placeholder="Describe your service offering"
+                          />
+                          <Select value={emailTone} onValueChange={(value: "professional" | "friendly" | "casual") => setEmailTone(value)}>
+                            <SelectTrigger className="w-[150px]">
+                              <SelectValue placeholder="Select tone" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="professional">Professional</SelectItem>
+                              <SelectItem value="friendly">Friendly</SelectItem>
+                              <SelectItem value="casual">Casual</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            variant="outline"
+                            onClick={handleGenerateEmail}
+                            disabled={isGenerating || !serviceOffering}
+                          >
+                            <Wand2 className="h-4 w-4 mr-2" />
+                            Generate
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <Input
-                    id="subject"
-                    value={emailSubject}
-                    onChange={(e) => setEmailSubject(e.target.value)}
-                    placeholder="Enter email subject"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="body">Email Body</Label>
-                  <Textarea
-                    id="body"
-                    value={emailBody}
-                    onChange={(e) => setEmailBody(e.target.value)}
-                    placeholder="Enter email body"
-                    rows={8}
-                  />
-                </div>
-                <div className="grid gap-4">
-                  
-                </div>
+                )}
+
+                {selectedOutreachMethod === 'call' && (
+                  <div className="space-y-4 border rounded-lg p-4 bg-gray-50">
+                    <div className="grid gap-2">
+                      <Label htmlFor="call-script">Call Script</Label>
+                      <Textarea
+                        id="call-script"
+                        value={callScript}
+                        onChange={(e) => setCallScript(e.target.value)}
+                        placeholder="Enter your cold calling script"
+                        rows={8}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="call-notes">Additional Notes</Label>
+                      <Textarea
+                        id="call-notes"
+                        value={callNotes}
+                        onChange={(e) => setCallNotes(e.target.value)}
+                        placeholder="Enter any additional notes or talking points"
+                        rows={4}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsCreateCampaignOpen(false)}>
@@ -530,14 +660,14 @@ export default function OutreachPage() {
                 </TableHeader>
                 <TableBody>
                   {campaigns.map((campaign) => (
-                    <TableRow key={campaign.id}>
-                      <TableCell className="font-medium">
-                        {campaign.name}
-                      </TableCell>
+                    <TableRow 
+                      key={campaign.id} 
+                      className="cursor-pointer hover:bg-gray-50"
+                      onClick={() => handleCampaignClick(campaign.id)}
+                    >
+                      <TableCell>{campaign.name}</TableCell>
                       <TableCell>
-                        <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${getStatusColor(campaign.status)}`}>
-                          {campaign.status}
-                        </span>
+                        <Badge className={getStatusColor(campaign.status)}>{campaign.status}</Badge>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">

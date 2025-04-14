@@ -54,16 +54,16 @@ export function Sidebar() {
   }
 
   return (
-    <div className="flex h-full w-64 flex-col border-r bg-white">
-      <div className="flex h-14 items-center border-b px-4">
-        <Link href="/tool/discover" className="flex items-center gap-2">
+    <div className="fixed inset-y-0 left-0 flex w-64 flex-col border-r bg-white">
+      <div className="flex h-14 shrink-0 items-center border-b px-4">
+        <Link href="/" className="flex items-center gap-2">
           <div className="rounded-lg bg-blue-600 p-1">
             <Search className="h-4 w-4 text-white" />
           </div>
           <span className="text-xl font-semibold text-gray-900">LeadGen</span>
         </Link>
       </div>
-      <nav className="flex-1 space-y-1 px-3 py-4">
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
         {navigation.map((item) => {
           const isActive = pathname === item.href
           return (
@@ -90,7 +90,7 @@ export function Sidebar() {
           )
         })}
       </nav>
-      <div className="border-t p-4">
+      <div className="shrink-0 border-t p-4">
         <button
           onClick={handleSignOut}
           className="flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"

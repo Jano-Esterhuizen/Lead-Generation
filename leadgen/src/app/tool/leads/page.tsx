@@ -233,7 +233,29 @@ export default function LeadsPage() {
   const handleAddToList = async (listId: string) => {
     try {
       const supabase = createClient()
-      const listItems = Array.from(selectedLeads).map(leadId => ({
+      const selectedLeadsArray = Array.from(selectedLeads)
+
+      // First, check which leads are already in the list
+      const { data: existingItems } = await supabase
+        .from("list_items")
+        .select("lead_id")
+        .eq("list_id", listId)
+        .in("lead_id", selectedLeadsArray)
+
+      // Filter out leads that are already in the list
+      const existingLeadIds = new Set(existingItems?.map(item => item.lead_id) || [])
+      const newLeads = selectedLeadsArray.filter(leadId => !existingLeadIds.has(leadId))
+
+      if (newLeads.length === 0) {
+        toast.success("Selected leads are already in this list", {
+          icon: '⚠️'
+        })
+        setSelectedLeads(new Set())
+        return
+      }
+
+      // Add only the new leads
+      const listItems = newLeads.map(leadId => ({
         list_id: listId,
         lead_id: leadId,
         status: "new",
@@ -245,7 +267,19 @@ export default function LeadsPage() {
 
       if (error) throw error
 
-      toast.success("Leads added to list!")
+      const addedCount = newLeads.length
+      const skippedCount = selectedLeadsArray.length - addedCount
+      
+      if (skippedCount > 0) {
+        toast.success(`Added ${addedCount} leads to list (${skippedCount} already existed)`, {
+          icon: '⚠️'
+        })
+      } else {
+        toast.success(`Added ${addedCount} leads to list!`, {
+          icon: '✅'
+        })
+      }
+      
       setSelectedLeads(new Set())
     } catch (err) {
       console.error("Error adding to list:", err)
